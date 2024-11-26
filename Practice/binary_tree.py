@@ -40,6 +40,43 @@ class BinaryTree:
             else:
                 current.right = Node(val)
 
+    def find_parent(self, root, target):
+        if not root:
+            return None
+        if root.left == target or root.right == target:
+            return root
+
+        left_parent = self.find_parent(root.left, target)
+        if left_parent:
+            return left_parent
+        
+        return self.find_parent(root.right)
+    
+    def find_direct_neighbors(self, root, target):
+        neighbors = []
+
+        if target.left:
+            neighbors.append(target.left)
+        if target.right:
+            neighbors.append(target.right)
+
+        parent = self.find_parent(root, target)
+        if parent:
+            neighbors.append(parent)
+
+        return neighbors
+    
+    def find_k_nbors(self, target, k, res):
+        if not target or k < 0:
+            return []
+        
+        if k==0:
+            res.append(target.val)
+            return
+        
+        self.find_k_nbors(target.left, k-1, res)
+        self.find_k_nbors(target.right, k-1, res)
+
 
 class Node:
     def __init__(self, val):
@@ -65,6 +102,7 @@ class VisualizeTree:
         self.font = None
         self.visited_color = (255, 0, 0)
         self.default_color = (0, 0, 255)
+        self.neighbor_color = (0, 255, 0)
         self.edge_color = (0, 255, 0)
         self.is_paused = False
 
@@ -76,22 +114,26 @@ class VisualizeTree:
         self.font = pygame.font.Font(None, 24)
         pygame.display.update()
 
-    def draw_tree(self, node, x, y, x_offset, y_offset, visited=None):
+    def draw_tree(self, node, x, y, x_offset, y_offset, visited=None, neighbors=None):
         if node:
             if node.left:
-                pygame.draw.line(self.screen, self.edge_color, (x, y), (x-x_offset, y+y_offset), 2)
-                self.draw_tree(node.left, x-x_offset, y+y_offset, x_offset//2, y_offset, visited)
+                pygame.draw.line(self.screen, self.edge_color, (x, y), (x - x_offset, y + y_offset), 2)
+                self.draw_tree(node.left, x - x_offset, y + y_offset, x_offset // 2, y_offset, visited, neighbors)
 
             if node.right:
-                pygame.draw.line(self.screen, self.edge_color, (x, y), (x+x_offset, y+y_offset), 2)
-                self.draw_tree(node.right, x+x_offset, y+y_offset, x_offset//2, y_offset, visited)
-            if visited:
-                color = self.visited_color if node in visited else self.default_color
+                pygame.draw.line(self.screen, self.edge_color, (x, y), (x + x_offset, y + y_offset), 2)
+                self.draw_tree(node.right, x + x_offset, y + y_offset, x_offset // 2, y_offset, visited, neighbors)
+
+            if visited and node in visited:
+                color = self.visited_color 
+            elif neighbors and node in neighbors:
+                color = self.neighbor_color
             else:
-                color = self.default_color
+                color = self.default_color 
+
             pygame.draw.circle(self.screen, color, (x, y), self.node_rad)
-            node_val_text = self.font.render(str(node.val), True, (255,255,255))
-            self.screen.blit(node_val_text, (x - self.node_rad//2+3, y-self.node_rad//2+2))
+            node_val_text = self.font.render(str(node.val), True, (255, 255, 255))
+            self.screen.blit(node_val_text, (x - self.node_rad // 2 + 3, y - self.node_rad // 2 + 2))
         pygame.display.update()
 
     def draw_instructions(self):
@@ -100,6 +142,7 @@ class VisualizeTree:
             "Press 2 to show 'Preorder Traverse'",
             "Press 3 to show 'Reversed Inorder Traverse'",
             "Press 4 to show 'Postorder Traverse'",
+            "Press n to show direct neighbors of node 5",
             "Press 'q' to quit",
         ]
         y_pos = self.height - len(instructions) * 30
@@ -231,6 +274,13 @@ class VisualizeTree:
         self.setup_pygame()
         self.postorder_trav(self.tree.root, visited)
 
+    def highlight_neighbors(self, neighbors):
+        self.screen.fill((255, 255, 255))
+        self.draw_tree(self.tree.root, self.width // 2, 50, 200, 70, None, neighbors)
+        self.draw_instructions()
+        pygame.display.update()
+        time.sleep(1)
+
 tree = BinaryTree(10)
 tree.insert(tree.root, 5)
 tree.insert(tree.root, 15)
@@ -248,7 +298,6 @@ def start_visual():
     visualizer = VisualizeTree(tree)
 
     run = True
-    traversing = True
 
     visualizer.visualize_binary_tree()
     while run:
@@ -277,6 +326,12 @@ def start_visual():
             visualizer.visualize_postorder_trav()
             time.sleep(0.5)
             visualizer.visualize_binary_tree()
+        
+        if keys[pygame.K_n]:
+            target = tree.root.left
+            nbors = tree.find_direct_neighbors(tree.root, target)
+            visualizer.highlight_neighbors(nbors)
+            # visualizer.visualize_binary_tree()
 
         if keys[pygame.K_q]:
             run = False
@@ -294,5 +349,19 @@ def start_term():
     print('\nPostorder Traverse')
     tree.postorder_trav(tree.root)
 
-# start_term()
+    # getting direct neighbors
+    target = tree.root.left
+    print(f'\nDirect neighbors of node {target.val}')
+    neighbors = tree.find_direct_neighbors(tree.root, target)
+    print([node.val for node in neighbors])
+
+    # get k distance from target neighbors
+    k = 2
+    res = []
+    target = tree.root.left
+    print(f'\nNeighbors {k} distance from node {target.val}')
+    tree.find_k_nbors(target, 1, res)
+    print(res)
+
+start_term()
 start_visual()
